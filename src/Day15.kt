@@ -1,40 +1,44 @@
 import java.util.*
-import kotlin.math.abs
 
 data class Day15Point(val row: Int, val column: Int)
 
 fun main() {
 
     fun findWay(riskLevels: Array<IntArray>): Int {
-        val accumulatedRisk = mutableMapOf<Day15Point, Int>()
-        val priorityQueue =
-            PriorityQueue<Day15Point> { o1, o2 -> accumulatedRisk[o1]!!.compareTo(accumulatedRisk[o2]!!) }
-        for (row in riskLevels.indices) {
-            for (column in riskLevels[0].indices) {
-                val point = Day15Point(row, column)
-                accumulatedRisk[point] = Int.MAX_VALUE
-                priorityQueue.add(point)
-            }
-        }
-        accumulatedRisk[Day15Point(0, 0)] = 0
+        val lastRowIndex = riskLevels.lastIndex
+        val lastColumnIndex = riskLevels[0].lastIndex
 
-        while (priorityQueue.isNotEmpty()) {
-            val point = priorityQueue.poll()
-            val neighbours = priorityQueue.filter {
-                (it.row == point.row && (abs(it.column - point.column) == 1)) ||
-                        (it.column == point.column && (abs(it.row - point.row) == 1))
-            }
-            neighbours.forEach { neighbour ->
-                val alt = accumulatedRisk[point]!! + riskLevels[neighbour.row][neighbour.column]
-                if (alt < accumulatedRisk[neighbour]!!) {
-                    accumulatedRisk[neighbour] = alt
-                    priorityQueue.remove(neighbour)
-                    priorityQueue.add(neighbour)
+        fun neighbors(point: Day15Point): List<Day15Point> {
+            val (row, column) = point
+            val top = if (row > 0) Day15Point(row - 1, column) else null
+            val left = if (column > 0) Day15Point(row, column - 1) else null
+            val right = if (column < lastColumnIndex) Day15Point(row, column + 1) else null
+            val bottom = if (row < lastRowIndex) Day15Point(row + 1, column) else null
+            return listOfNotNull(top, left, right, bottom)
+        }
+
+        val frontier = PriorityQueue<Pair<Day15Point, Int>> { o1, o2 -> o1.second.compareTo(o2.second) }
+        val start = Day15Point(0, 0)
+        frontier.add(start to 0)
+        val accumulatedRisk = mutableMapOf<Day15Point, Int>()
+        accumulatedRisk[start] = 0
+
+        val goal = Day15Point(lastRowIndex, lastColumnIndex)
+        while (frontier.isNotEmpty()) {
+            val current = frontier.poll().first
+
+            if (current == goal)
+                return accumulatedRisk[goal]!!
+
+            for (next in neighbors(current)) {
+                val newRisk = accumulatedRisk[current]!! + riskLevels[next.row][next.column]
+                if (next !in accumulatedRisk || newRisk < accumulatedRisk[next]!!) {
+                    accumulatedRisk[next] = newRisk
+                    frontier.add(next to newRisk)
                 }
             }
         }
-
-        return accumulatedRisk[Day15Point(riskLevels.lastIndex, riskLevels[0].lastIndex)]!!
+        return 0
     }
 
     fun part1(input: List<String>): Int {
