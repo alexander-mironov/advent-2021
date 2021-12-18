@@ -1,7 +1,36 @@
+const val TYPE_SUM = 0
+const val TYPE_PRODUCT = 1
+const val TYPE_MINIMUM = 2
+const val TYPE_MAXIMUM = 3
+const val TYPE_LITERAL = 4
+const val TYPE_GREATER_THAN = 5
+const val TYPE_LESS_THAN = 6
+const val TYPE_EQUAL_TO = 7
+
 sealed class Packet(open val version: Int) {
     data class Literal(override val version: Int, val value: Long) : Packet(version)
     data class Operator(override val version: Int, val packetTypeId: Int, val packets: List<Packet>) :
         Packet(version)
+
+    fun evaluate(): Long {
+        return when (this) {
+            is Literal -> {
+                value
+            }
+            is Operator -> {
+                when (packetTypeId) {
+                    TYPE_SUM -> packets.sumOf { it.evaluate() }
+                    TYPE_PRODUCT -> packets.fold(1) { acc, packet -> acc * packet.evaluate() }
+                    TYPE_MINIMUM -> packets.minOf { it.evaluate() }
+                    TYPE_MAXIMUM -> packets.maxOf { it.evaluate() }
+                    TYPE_GREATER_THAN -> if (packets[0].evaluate() > packets[1].evaluate()) 1 else 0
+                    TYPE_LESS_THAN -> if (packets[0].evaluate() < packets[1].evaluate()) 1 else 0
+                    TYPE_EQUAL_TO -> if (packets[0].evaluate() == packets[1].evaluate()) 1 else 0
+                    else -> throw IllegalArgumentException("Unknown type: $packetTypeId")
+                }
+            }
+        }
+    }
 }
 
 class InterpreterPosition {
@@ -21,8 +50,6 @@ class InterpreterPosition {
     }
 
 }
-
-const val TYPE_LITERAL = 4
 
 fun main() {
 
@@ -106,8 +133,10 @@ fun main() {
         return sumOfVersions(outermostPacket)
     }
 
-    fun part2(input: String): Int {
-        return 0
+    fun part2(input: String): Long {
+        val binaryRepresentation = input.map { toBinary[it]!! }.joinToString(separator = "")
+        val outermostPacket = parse(binaryRepresentation, InterpreterPosition())
+        return outermostPacket.evaluate()
     }
 
     //part1("D2FE28")
@@ -115,6 +144,15 @@ fun main() {
     check(part1("620080001611562C8802118E34") == 12)
     check(part1("C0015000016115A2E0802F182340") == 23)
     check(part1("A0016C880162017C3686B18A3D4780") == 31)
+
+    check(part2("C200B40A82") == 3L)
+    check(part2("04005AC33890") == 54L)
+    check(part2("880086C3E88112") == 7L)
+    check(part2("CE00C43D881120") == 9L)
+    check(part2("D8005AC2A8F0") == 1L)
+    check(part2("F600BC2D8F") == 0L)
+    check(part2("9C005AC2F8F0") == 0L)
+    check(part2("9C0141080250320F1802104A08") == 1L)
 
     val input = readInputAsString("Day16")
     println(part1(input))
