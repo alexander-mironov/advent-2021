@@ -33,7 +33,7 @@ sealed class Packet(open val version: Int) {
     }
 }
 
-class InterpreterPosition {
+class ParserPosition {
     var value: Int = 0
         private set
 
@@ -83,7 +83,7 @@ fun main() {
         }
     }
 
-    fun parseLiteralValue(input: String, position: InterpreterPosition): Long {
+    fun parseLiteralValue(input: String, position: ParserPosition): Long {
         val lastPart = '0'
         var flag: Char
         val value = buildString {
@@ -97,7 +97,7 @@ fun main() {
         return value
     }
 
-    fun parse(input: String, position: InterpreterPosition): Packet {
+    fun parse(input: String, position: ParserPosition): Packet {
         val version = input.substring(position.value, position + 3).toInt(radix = 2)
         position += 3
         val packetTypeId = input.substring(position.value, position + 3).toInt(radix = 2)
@@ -129,13 +129,13 @@ fun main() {
 
     fun part1(input: String): Int {
         val binaryRepresentation = input.map { toBinary[it]!! }.joinToString(separator = "")
-        val outermostPacket = parse(binaryRepresentation, InterpreterPosition())
+        val outermostPacket = parse(binaryRepresentation, ParserPosition())
         return sumOfVersions(outermostPacket)
     }
 
     fun part2(input: String): Long {
         val binaryRepresentation = input.map { toBinary[it]!! }.joinToString(separator = "")
-        val outermostPacket = parse(binaryRepresentation, InterpreterPosition())
+        val outermostPacket = parse(binaryRepresentation, ParserPosition())
         return outermostPacket.evaluate()
     }
 
