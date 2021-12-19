@@ -201,10 +201,27 @@ fun main() {
         return prevNumber!!.magnitude()
     }
 
-    fun part2(input: String): Int {
-        return 0
+    fun part2(input: List<String>): Int {
+        var maxMagnitude = Int.MIN_VALUE
+        for ((index1, line1) in input.withIndex()) {
+            for ((index2, line2) in input.withIndex()) {
+                if (index1 != index2) {
+                    val left = parse(line1, ParserPosition(), parent = null)
+                    val right = parse(line2, ParserPosition(), parent = null)
+                    val sum = left + right
+                    reduce(sum)
+                    val magnitude = sum.magnitude()
+                    if (magnitude > maxMagnitude) {
+                        maxMagnitude = magnitude
+                    }
+                }
+            }
+        }
+        return maxMagnitude
     }
 
     check(part1(readInput("Day18_test")) == 4140)
+    check(part2(readInput("Day18_test")) == 3993)
     println(part1(readInput("Day18")))
+    println(part2(readInput("Day18")))
 }
