@@ -37,8 +37,9 @@ class ParserPosition {
     var value: Int = 0
         private set
 
-    fun inc(value: Int) {
+    fun inc(value: Int): Int {
         this.value += value
+        return this.value
     }
 
     operator fun plusAssign(value: Int) {
