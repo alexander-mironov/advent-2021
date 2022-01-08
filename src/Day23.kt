@@ -17,32 +17,31 @@ data class Step(val amphipods: Set<Amphipod>, val score: Int)
 
 fun main() {
 
-    fun getArray(step: Step): Array<Array<Amphipod?>> {
-        val array = Array<Array<Amphipod?>>(3) { Array(11) { null } }
+    fun getArray(step: Step, rows: Int = 3): Array<Array<Amphipod?>> {
+        val array = Array<Array<Amphipod?>>(rows) { Array(11) { null } }
         step.amphipods.forEach { amphipod ->
             array[amphipod.row][amphipod.column] = amphipod
         }
-        println("Score: ${step.score}")
-        for (row in 0..2) {
-            for (column in 0..10) {
-                val atPoistion = array[row][column]
-                if (atPoistion != null) {
-                    print(atPoistion.type)
-                } else if (row == 0 || column in listOf(2, 4, 6, 8)) {
-                    print('.')
-                } else {
-                    print('#')
-                }
-            }
-            println()
-        }
-        println()
-
+//        println("Score: ${step.score}")
+//        for (row in 0 until rows) {
+//            for (column in 0..10) {
+//                val atPoistion = array[row][column]
+//                if (atPoistion != null) {
+//                    print(atPoistion.type)
+//                } else if (row == 0 || column in listOf(2, 4, 6, 8)) {
+//                    print('.')
+//                } else {
+//                    print('#')
+//                }
+//            }
+//            println()
+//        }
+//        println()
 
         return array
     }
 
-    fun isPathClear(
+    fun isHallwayPathClear(
         amphipod: Amphipod,
         destinationColumn: Int,
         array: Array<Array<Amphipod?>>
@@ -53,7 +52,9 @@ fun main() {
         return pathIsClear
     }
 
-    fun part1(initialStep: Step): Int {
+    fun findEnergy(initialStep: Step): Int {
+        val bigRoom = initialStep.amphipods.size > 8
+        val lastRow = if (bigRoom) 4 else 2
         val seen = mutableSetOf<Set<Amphipod>>()
 
         val priorityQueue = PriorityQueue<Step> { s0, s1 ->
@@ -65,59 +66,47 @@ fun main() {
         var bestScore = Int.MAX_VALUE
         while (priorityQueue.isNotEmpty()) {
             val step = priorityQueue.poll()
-            if (step.score >= bestScore || seen.contains(step.amphipods)) {
-                continue
-            }
             seen.add(step.amphipods)
 
-            val array = getArray(step)
+            val array = getArray(step, rows = lastRow + 1)
             val allInPlace = step.amphipods.all { it.isInDestinationRoom }
             if (allInPlace) {
                 bestScore = step.score
                 println("Score: ${step.score}")
-                continue
+                break
             }
 
             for (amphipod in step.amphipods) {
-                if (amphipod.isInDestinationRoom && amphipod.row == 1 && array[2][amphipod.column]?.type == amphipod.type) { // the room is full
-                    continue
-                } else if (amphipod.isInDestinationRoom && amphipod.row == 2) { // on the bottom of the proper room
+                val allTheSameTypeInDestinationRoom =
+                    (1..lastRow).all { array[it][amphipod.type.destinationRoomColumn]?.type == amphipod.type || array[it][amphipod.type.destinationRoomColumn]?.type == null }
+                val isTopEmpty = (1 until amphipod.row).all { array[it][amphipod.column] == null }
+                if (amphipod.isInDestinationRoom && allTheSameTypeInDestinationRoom) { // the room is filled with same type creatures
                     continue
                 } else if (amphipod.isInHallway) { // in hallway can go to it's room only (if it's empty or occupied by a specie of the same color)
                     val destinationColumn = amphipod.type.destinationRoomColumn
-                    val isBottomPlaceAvailable = array[1][destinationColumn] == null &&
-                            array[2][destinationColumn] == null
-                    val isTopPlaceAvailable = array[1][destinationColumn] == null &&
-                            array[2][destinationColumn]?.type == amphipod.type
-                    val pathIsClear = isPathClear(amphipod, destinationColumn, array)
-                    if (pathIsClear && isBottomPlaceAvailable) {
+                    val pathIsClear = isHallwayPathClear(amphipod, destinationColumn, array)
+                    if (pathIsClear && allTheSameTypeInDestinationRoom) {
+                        val lastEmpty = (1..lastRow).last { array[it][amphipod.type.destinationRoomColumn] == null }
                         val newScore =
-                            step.score + amphipod.type.price * (abs(amphipod.column - destinationColumn) + 2)
-                        val positions = step.amphipods - amphipod + amphipod.copy(row = 2, column = destinationColumn)
+                            step.score + amphipod.type.price * (abs(amphipod.column - destinationColumn) + lastEmpty)
+                        val positions =
+                            step.amphipods - amphipod + amphipod.copy(row = lastEmpty, column = destinationColumn)
                         val newStep = Step(positions, newScore)
-                        if (!priorityQueue.contains(newStep)) {
-                            priorityQueue.add(newStep)
-                        }
-                    } else if (pathIsClear && isTopPlaceAvailable) {
-                        val newScore =
-                            step.score + amphipod.type.price * (abs(amphipod.column - destinationColumn) + 1)
-                        val positions = step.amphipods - amphipod + amphipod.copy(row = 1, column = destinationColumn)
-                        val newStep = Step(positions, newScore)
-                        if (!priorityQueue.contains(newStep)) {
+                        if (!priorityQueue.contains(newStep) && !seen.contains(newStep.amphipods)) {
                             priorityQueue.add(newStep)
                         }
                     }
-                } else if (amphipod.row == 2 && array[1][amphipod.column] != null) { // the way is blocked
+                } else if (amphipod.row >= 2 && !isTopEmpty) { // the way is blocked
                     continue
                 } else {
                     val potentialColumns = listOf(0, 1, 3, 5, 7, 9, 10)
                     potentialColumns.forEach { column ->
-                        if (isPathClear(amphipod, column, array)) {
+                        if (isHallwayPathClear(amphipod, column, array)) {
                             val newScore =
                                 step.score + amphipod.type.price * (abs(amphipod.column - column) + amphipod.row)
                             val positions = step.amphipods - amphipod + amphipod.copy(row = 0, column = column)
                             val newStep = Step(positions, newScore)
-                            if (!priorityQueue.contains(newStep)) {
+                            if (!priorityQueue.contains(newStep) && !seen.contains(newStep.amphipods)) {
                                 priorityQueue.add(newStep)
                             }
                         }
@@ -149,6 +138,28 @@ fun main() {
             ), 0
         )
 
+    val testConfig2 =
+        Step(
+            setOf(
+                Amphipod(AmphipodType.B, 1, 2),
+                Amphipod(AmphipodType.D, 2, 2),
+                Amphipod(AmphipodType.D, 3, 2),
+                Amphipod(AmphipodType.A, 4, 2),
+                Amphipod(AmphipodType.C, 1, 4),
+                Amphipod(AmphipodType.C, 2, 4),
+                Amphipod(AmphipodType.B, 3, 4),
+                Amphipod(AmphipodType.D, 4, 4),
+                Amphipod(AmphipodType.B, 1, 6),
+                Amphipod(AmphipodType.B, 2, 6),
+                Amphipod(AmphipodType.A, 3, 6),
+                Amphipod(AmphipodType.C, 4, 6),
+                Amphipod(AmphipodType.D, 1, 8),
+                Amphipod(AmphipodType.A, 2, 8),
+                Amphipod(AmphipodType.C, 3, 8),
+                Amphipod(AmphipodType.A, 4, 8)
+            ), 0
+        )
+
     val config =
         Step(
             setOf(
@@ -163,6 +174,30 @@ fun main() {
             ), 0
         )
 
-    //check(part1(testConfig) == 12521)
-    println(part1(config))
+    val config2 =
+        Step(
+            setOf(
+                Amphipod(AmphipodType.C, 1, 2),
+                Amphipod(AmphipodType.D, 2, 2),
+                Amphipod(AmphipodType.D, 3, 2),
+                Amphipod(AmphipodType.B, 4, 2),
+                Amphipod(AmphipodType.B, 1, 4),
+                Amphipod(AmphipodType.C, 2, 4),
+                Amphipod(AmphipodType.B, 3, 4),
+                Amphipod(AmphipodType.C, 4, 4),
+                Amphipod(AmphipodType.D, 1, 6),
+                Amphipod(AmphipodType.B, 2, 6),
+                Amphipod(AmphipodType.A, 3, 6),
+                Amphipod(AmphipodType.A, 4, 6),
+                Amphipod(AmphipodType.D, 1, 8),
+                Amphipod(AmphipodType.A, 2, 8),
+                Amphipod(AmphipodType.C, 3, 8),
+                Amphipod(AmphipodType.A, 4, 8)
+            ), 0
+        )
+
+    // check(part1(testConfig) == 12521)
+    //check(part1(testConfig2) == 44169)
+    //println(part1(config))
+    println(findEnergy(config2))
 }
